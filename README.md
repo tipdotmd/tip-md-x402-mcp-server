@@ -1,214 +1,213 @@
-# GitTipStream MCP Server - x402 + CDP Integration
+# tip.md x402 + CDP MCP Server
 
 > **🏆 Hackathon Entry**: Transform any AI agent into a payment-enabled tipping agent using x402 payment collection with CDP automatic disbursement.
 
+## 🌟 About tip.md
+
+**tip.md** is a platform that allows developers to receive cryptocurrency tips directly to their wallets via a simple button embeddable in GitHub READMEs, websites, or any markdown content. It supports:
+
+- **Multiple Blockchains**: Ethereum, Base,Solana, and Bitcoin Lightning Network
+- **Direct-to-Wallet Payments**: Tips go straight to your wallet, no custody
+- **Simple Integration**: One button, works everywhere markdown is supported
+- **4% Platform Fee**: Transparent pricing, we only make money if you do
+- **Client-Side Security**: All transactions processed securely in the browser
+
+This MCP server extends tip.md's functionality by enabling **any AI agent** to facilitate crypto tipping through the innovative x402 + CDP integration.
+
 ## 🚀 Quick Demo (No Setup Required)
 
-Experience the x402 + CDP tipping flow instantly:
+**For Judges & Evaluators**: Experience the x402 + CDP tipping flow instantly:
 
 ```bash
-git clone <this-repo>
-cd mcp-server
+git clone https://github.com/xR0am/tip-md-x402-mcp-server.git
+cd tip-md-x402-mcp-server
 npm install
 NODE_ENV=demo npm start
 ```
 
-**That's it!** The server runs in demo mode, showing simulated x402 + CDP transactions.
+**⚠️ Important**: The server running alone shows logs, but to see the **demo payment functionality**, you need to connect it to an MCP client (see [Testing with MCP Clients](#testing-with-mcp-clients) below).
 
 ## 🎯 What This Does
 
 **Core Innovation**: ANY AI agent + this MCP = instant payment-enabled agent
 
-- **x402 Payment Collection**: Users pay from dedicated wallets
-- **CDP Automatic Disbursement**: Backend splits payments (96% recipient, 4% platform)
-- **MCP Tool Integration**: Works with Claude, ChatGPT, or any MCP-compatible agent
-- **True Composability**: Plug into any AI agent for instant payment capabilities
+- **x402 Payment Collection**: Users pay from dedicated wallets using the x402 payment protocol (Money IN)
+- **CDP Automatic Disbursement**: Backend automatically splits payments (96% recipient, 4% platform) via Coinbase Wallet API (Money OUT)
+- **MCP Tool Integration**: Works with Claude, ChatGPT, Cursor, or any MCP-compatible agent
+- **True Composability**: Transform existing AI workflows into payment-enabled experiences
 
-## 🏗️ Architecture
+### 🔄 The Complete Flow
 
-### Payment Flow
+1. **User asks AI agent**: "Tip @username 5 USDC"
+2. **x402 Payment Collection**: Agent generates payment request, user pays from dedicated wallet
+3. **CDP Automatic Disbursement**: Backend splits payment and sends to recipient + platform
+4. **AI Confirms**: "✅ Sent 5 USDC to @username"
+
+## 📋 Available MCP Tools
+
+This MCP server exposes **7 tools** that any AI agent can use:
+
+### **💰 x402 + CDP Payment Tools (Hackathon Innovation)**
+- **`mcp_tip_md_tip_user_x402`**: Send USDC tips using x402 payment protocol with CDP automatic disbursement
+- **`mcp_tip_md_check_tipping_balance`**: Check/create your dedicated x402 tipping wallet balance and info
+
+### **🔧 Wallet Management Tools**  
+- **`mcp_tip_md_export_tipping_wallet`**: Export your tipping wallet private key (security sensitive)
+- **`mcp_tip_md_withdraw_tipping_funds`**: Withdraw USDC from your tipping wallet to any address
+
+### **🔍 User & Network Tools**
+- **`mcp_tip_md_get_user_wallet_types`**: Check recipient's supported cryptocurrencies and wallet types
+- **`mcp_tip_md_crypto_tipping`**: Manual crypto tipping information for agents with wallet to instruct (Ethereum, Base, Solana - no x402/CDP flow)
+
+### **🏥 System Tools**
+- **`mcp_tip_md_ping`**: Health check endpoint
+
+## 🧪 Testing with MCP Clients
+
+To see the **actual demo payment functionality**, you need to connect the MCP server to a compatible client:
+
+### Cursor IDE Setup
+
+1. **Edit your MCP configuration** (`~/.cursor/mcp.json`):
+```json
+{
+  "mcpServers": {
+    "tip-md-demo": {
+      "command": "node",
+      "args": ["dist/mcp-server/src/index.js"],
+      "cwd": "/path/to/tip-md-x402-mcp-server",
+      "env": {
+        "NODE_ENV": "demo"
+      }
+    }
+  }
+}
 ```
-User → Dedicated Tipping Wallet → x402 Payment Collection → CDP Agent Wallet → CDP Disburses to Recipient (96%) + Platform (4%)
+
+2. **Restart Cursor** and look for the 🔨 tools icon
+
+3. **Test the demo**:
+   - Type: "Tip user johndoe 5 USDC using base blockchain"
+   - Watch the x402 + CDP simulation in action!
+
+### Claude Desktop Setup
+
+1. **Install Supergateway** (bridges our HTTP transport to stdio):
+```bash
+npm install -g supergateway
 ```
 
-### Key Components
-- **Dedicated User Wallets**: Generated per user, isolated from main wallets
-- **x402 Payment Protocol**: Seamless USDC payments on Base/Ethereum  
-- **CDP Wallet API**: Automatic backend splitting and routing
-- **MCP Framework**: Universal AI agent integration
-
-## 📋 MCP Tools Available
-
-### Core Tipping
-- **`tip_user_x402`**: Send USDC tips via x402 → CDP flow
-- **`check_tipping_balance`**: Check wallet balance and create new wallets
-- **`get_user_wallet_types`**: Get user's configured wallet types
-
-### Wallet Management  
-- **`export_tipping_wallet`**: Export private key for full control
-- **`withdraw_tipping_funds`**: Sweep all funds to main wallet
-
-### Utility
-- **`ping`**: Health check endpoint
-
-## 🎮 User Experience
-
-### First Time Setup
-```
-User: "Tip alice 5 USDC"
-Agent: "🔐 Generated your dedicated wallet: 0xABC123... Please fund with USDC"
-User: [funds wallet]
-User: "Tip alice 5 USDC" (retry)
-Agent: "✅ Tipped alice 5 USDC! (4.80 to alice, 0.20 platform fee)"
+2. **Configure Claude Desktop** (`~/Library/Application Support/Claude/claude_desktop_config.json`):
+```json
+{
+  "mcpServers": {
+    "tip-md-demo": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "supergateway",
+        "--httpStream",
+        "http://localhost:3000/mcp",
+        "--outputTransport",
+        "stdio"
+      ]
+    }
+  }
+}
 ```
 
-### Ongoing Usage
-```
-User: "Tip bob 3 USDC" → Agent: "✅ Done! Remaining balance: 42 USDC"
-User: "Check balance" → Agent: "47.50 USDC available"
-User: "Withdraw all" → Agent: "✅ Sent 47.50 USDC to your main wallet"
-```
-
-## 🛠️ Integration Modes
-
-### 1. Demo Mode (Default)
-Perfect for hackathon judges and testing:
-
+3. **Start the MCP server** in demo mode:
 ```bash
 NODE_ENV=demo npm start
 ```
 
-**Features:**
-- ✅ No database setup required
-- ✅ Simulated x402 + CDP responses  
-- ✅ Shows full payment flow
-- ✅ Instant setup for evaluation
+4. **Restart Claude Desktop** and test with: "Show me available tip.md tools"
 
-### 2. Production Mode
-Full integration with tip.md platform:
+### Other MCP Clients
+
+For clients supporting HTTP-stream transport:
+- **Endpoint**: `http://localhost:3000/mcp` (when running locally)
+- **Transport**: HTTP-stream
+- **Environment**: Set `NODE_ENV=demo` for simulation mode
+
+## 🛠️ Production Integration (Requires Setup)
+
+For full integration with the tip.md platform:
+
+### Environment Variables
+
+Create a `.env` file:
 
 ```bash
-# Requires MongoDB and CDP credentials
-NODE_ENV=production npm start
+# Database Connection (Required for production)
+MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/database
+
+# Coinbase Developer Platform (Required for CDP disbursement)
+CDP_API_KEY_ID=your_cdp_api_key_id
+CDP_API_KEY_SECRET=your_cdp_api_key_secret
+
+# x402 Configuration (Required for payment collection)
+X402_WALLET_PRIVATE_KEY=your_x402_wallet_private_key
+
+# Optional Configuration
+PORT=3000
+NODE_ENV=production
+LOG_LEVEL=info
 ```
 
-**Requirements:**
-- MongoDB URI for user database
-- CDP API credentials for real transactions
-- Main GitTipStream server running
+### Production Deployment
 
-## 📦 Installation & Setup
-
-### Quick Start (Demo)
 ```bash
 npm install
-cp .env.example .env
-# Keep NODE_ENV=demo in .env
+npm run build
 npm start
 ```
 
-### Production Integration
-```bash
-npm install
-cp .env.example .env
-# Edit .env with your credentials:
-# - MONGODB_URI=your_mongodb_connection
-# - CDP_API_KEY_ID=your_cdp_key
-# - CDP_PRIVATE_KEY=your_cdp_private_key
-# - NODE_ENV=production
-npm start
-```
+## 🏗️ Technical Architecture
 
-## 🔧 Environment Configuration
+### x402 Payment Collection
+- **Dedicated Wallets**: Each user gets a unique payment wallet
+- **Protocol Compliance**: Full x402 specification implementation
+- **Multi-Chain Support**: Ethereum, Base, Solana networks
 
-Create `.env` file:
+### CDP Automatic Disbursement  
+- **Smart Splitting**: 96% to recipient, 4% to platform
+- **Instant Settlement**: Automated via Coinbase Developer Platform
+- **Multi-Token Support**: USDC, ETH, SOL, and more
 
-```bash
-# Demo Mode (default)
-NODE_ENV=demo
+### MCP Integration
+- **Universal Compatibility**: Works with any MCP-compatible AI agent
+- **Structured Responses**: Rich JSON responses for seamless integration
+- **Error Handling**: Graceful fallbacks and detailed error messages
 
-# Production Mode (requires setup)
-# NODE_ENV=production
-# MONGODB_URI=mongodb+srv://...
-# CDP_API_KEY_ID=your_key
-# CDP_PRIVATE_KEY=your_private_key
+## 🎖️ Hackathon Submission Details
 
-# Server Configuration
-PORT=5001
-MCP_PORT=5003
-```
+**Challenge**: Coinbase x402 + CDP Integration
+**Innovation**: Universal AI agent payment enablement
+**Demo Mode**: `NODE_ENV=demo npm start`
+**Repository**: https://github.com/xR0am/tip-md-x402-mcp-server
 
-## 🎯 Hackathon Alignment
+### Key Differentiators
 
-Perfect match for **"Best Use of x402pay + CDP Wallet"**:
+1. **Universal Agent Integration**: Any MCP client becomes payment-enabled
+2. **Complete Payment Flow**: x402 collection + CDP disbursement in one solution
+3. **Zero-Setup Demo**: Judges can evaluate immediately
+4. **Production-Ready**: Already integrated with tip.md platform
 
-- ✅ **x402pay**: Dedicated user wallet payment collection
-- ✅ **CDP Wallet**: Automatic disbursement + platform fee splitting  
-- ✅ **Agent Integration**: Any AI agent can plug in for instant payments
-- ✅ **Real-world Use**: GitHub contributor tipping ecosystem
-- ✅ **Composability**: Reusable payment infrastructure
+## 📚 Learn More
 
-## 🔐 Security & Custody
+- **tip.md Platform**: https://tip.md
+- **MCP Protocol**: https://modelcontextprotocol.io
+- **x402 Specification**: https://docs.coinbase.com/x402
+- **Coinbase CDP**: https://docs.cdp.coinbase.com
 
-- **Non-custodial**: Users control their private keys
-- **Dedicated Wallets**: Isolated tipping funds, not main wallet exposure  
-- **Full Recovery**: Users can export private keys or withdraw anytime
-- **Transparent Fees**: Clear 4% platform fee with 96% to recipients
+## 🤝 Support
 
-## 🧪 Technical Implementation
-
-### x402 Payment Integration
-```typescript
-// Each user's dedicated wallet pays via x402
-const account = privateKeyToAccount(userWallet.privateKey);
-const x402Client = withPaymentInterceptor(axios.create({ 
-  baseURL: 'https://tip.md' 
-}), account);
-
-// This triggers x402 payment flow automatically
-const response = await x402Client.post('/api/x402/tip', tipData);
-```
-
-### CDP Disbursement Backend
-```typescript
-// x402 protected endpoint that triggers CDP disbursement
-app.post('/api/x402/tip', paymentMiddleware, async (req, res) => {
-  // Payment successful via x402 - now trigger CDP disbursement
-  const { username, amount } = req.body;
-  
-  // CDP splits payment: 96% to recipient, 4% to platform
-  await cdp.transfer(recipientAddress, amount * 0.96);
-  await cdp.transfer(platformAddress, amount * 0.04);
-  
-  res.json({ success: true, txHash: result.hash });
-});
-```
-
-## 📡 API Endpoints
-
-- **MCP Endpoint**: `http://localhost:5003/mcp`
-- **x402 Payment**: `http://localhost:5001/tip`
-- **Health Check**: `http://localhost:5003/ping`
-
-## 🤝 Contributing
-
-This is the standalone version for hackathon demonstration. For full integration:
-
-1. The complete tip.md platform handles user management
-2. The MongoDB database stores user and transaction data  
-3. The CDP integration manages real USDC transfers
-
-## 📄 License
-
-MIT License - See [LICENSE](LICENSE) file for details.
-
-## 🔗 Links
-
-- **Live Platform**: [tip.md](https://tip.md)
-- **CDP Documentation**: [Coinbase Developer Platform](https://docs.cdp.coinbase.com/)
-- **x402 Protocol**: [x402pay](https://x402pay.dev/)
-- **MCP Framework**: [Model Context Protocol](https://modelcontextprotocol.io/)
+For questions about this hackathon entry:
+- **Issues**: Open a GitHub issue
+- **Email**: support@tip.md
+- **Demo Problems**: Ensure you're testing through an MCP client, not just the server logs
 
 ---
 
-**Built for the Coinbase x402 + CDP Hackathon** 🏆 
+**Built for the Coinbase x402 + CDP Hackathon** 🏆
