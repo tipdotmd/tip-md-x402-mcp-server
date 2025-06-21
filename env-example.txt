@@ -1,0 +1,50 @@
+# ==============================================
+# MCP Server Environment Configuration
+# Copy this file to '.env' and uncomment/edit as needed
+# ==============================================
+
+# ==============================================
+# DEMO MODE (No setup required)
+# ==============================================
+# Set to 'demo' to run in hackathon demonstration mode
+# This bypasses database requirements and shows simulated responses
+NODE_ENV=demo
+
+# ==============================================
+# PRODUCTION INTEGRATION (Requires setup)
+# ==============================================
+# For full integration with the tip.md platform:
+
+# Database Connection (Required for production)
+# Replace with your actual MongoDB connection string
+# MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/database?retryWrites=true&w=majority
+
+# CDP (Coinbase Developer Platform) Configuration (Required for real transactions)
+# Get these from: https://portal.cdp.coinbase.com/
+# CDP_API_KEY_ID=your_cdp_api_key_id
+# CDP_PRIVATE_KEY=your_cdp_private_key
+
+# Server Configuration
+# PORT=5001
+# MCP_PORT=5003
+
+# Optional: Logging
+# LOG_LEVEL=info
+# DEBUG=false
+
+# ==============================================
+# DEMO MODE INSTRUCTIONS
+# ==============================================
+# 1. Copy this file to '.env'
+# 2. Keep NODE_ENV=demo
+# 3. Run: npm install && npm start
+# 4. The server will show simulated x402 + CDP responses
+
+# ==============================================
+# PRODUCTION INTEGRATION INSTRUCTIONS
+# ==============================================
+# 1. Set up MongoDB Atlas or local MongoDB
+# 2. Get CDP API credentials from Coinbase
+# 3. Replace the commented values above with your real credentials
+# 4. Change NODE_ENV to 'production'
+# 5. Ensure the main GitTipStream server is running 
