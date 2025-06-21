@@ -1,4 +1,4 @@
-# tip.md x402 + CDP MCP Server
+# [tip.md](https://tip.md) x402 + CDP MCP Server
 
 > **🏆 Hackathon Entry**: Transform any AI agent into a payment-enabled tipping agent using x402 payment collection with CDP automatic disbursement.
 
