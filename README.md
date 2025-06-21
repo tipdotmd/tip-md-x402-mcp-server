@@ -38,10 +38,18 @@ NODE_ENV=demo npm start
 
 ### 🔄 The Complete Flow
 
-1. **User asks AI agent**: "Tip @username 5 USDC"
-2. **x402 Payment Collection**: Agent generates payment request, user pays from dedicated wallet
-3. **CDP Automatic Disbursement**: Backend splits payment and sends to recipient + platform
-4. **AI Confirms**: "✅ Sent 5 USDC to @username"
+1. **User: "Check balance"** → Agent: *"47.50 USDC available for tipping"*
+2. **User asks AI agent**: "Tip @username 5 USDC"
+3. **x402 Payment Collection**: Agent generates payment request, user pays from dedicated wallet
+4. **CDP Automatic Disbursement**: Backend splits payment and sends to recipient + platform
+5. **AI Confirms**: "✅ Sent 5 USDC to @username"
+
+## Architecture: True x402 → CDP Flow
+
+### User Payment Flow
+```
+User → Dedicated Tipping Wallet → x402 Payment Collection → CDP Agent Wallet → CDP Disburses to Recipient (96%) + Platform (4%)
+```
 
 ## 📋 Available MCP Tools
 
