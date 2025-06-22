@@ -42,15 +42,10 @@ let storage: any = null;
 
 async function getStorage() {
   if (!storage) {
-    try {
-      // Try to load the main repo's storage (when integrated)
-      const storageModule = await import('../../../server/storage.js');
-      storage = storageModule.storage;
-    } catch (error) {
-      // Gracefully handle when running standalone (public repo)
-      console.warn('[CheckTippingBalanceTool] Main storage not available, using local mode');
-      return null;
-    }
+    // In standalone mode, we don't have access to main project storage
+    // This is expected for the hackathon demo repo
+    console.log('[CheckTippingBalanceTool] Running in standalone mode - using local wallet files');
+    return null;
   }
   return storage;
 }

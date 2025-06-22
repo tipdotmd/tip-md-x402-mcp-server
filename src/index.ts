@@ -3,7 +3,6 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { setupX402Routes } from './server/x402-server.js';
-import { logEnvironmentStatus } from './utils/environment.js';
 
 // Load environment variables
 const __filename = fileURLToPath(import.meta.url);
@@ -67,9 +66,6 @@ const server = new MCPServer({
 });
 
 logger.info(`MCP Server (mcp-framework) "${SERVER_NAME}" v${SERVER_VERSION}" initializing...`);
-
-// Log environment status for debugging
-logEnvironmentStatus();
 
 let isShuttingDown = false;
 

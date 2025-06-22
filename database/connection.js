@@ -85,6 +85,10 @@ export async function connectToDatabase() {
         logger.info('Connected successfully to MongoDB');
         // Get the database
         db = client.db(DB_NAME);
+        
+        // Create indexes for encrypted_wallets collection
+        await createEncryptedWalletsIndexes();
+        
         return db;
     }
     catch (error) {
@@ -92,6 +96,31 @@ export async function connectToDatabase() {
         throw error;
     }
 }
+
+/**
+ * Create indexes for encrypted_wallets collection
+ */
+async function createEncryptedWalletsIndexes() {
+    try {
+        if (!db) {
+            throw new Error('Database not initialized');
+        }
+        
+        const collection = db.collection('encrypted_wallets');
+        
+        // Create indexes for encrypted wallets
+        await collection.createIndex({ userId: 1 }, { unique: true });
+        await collection.createIndex({ address: 1 });
+        await collection.createIndex({ createdAt: 1 });
+        await collection.createIndex({ lastUsed: 1 });
+        
+        logger.info('Created indexes for encrypted_wallets collection');
+    } catch (error) {
+        logger.warn('Failed to create encrypted_wallets indexes:', error.message);
+        // Don't throw - indexes are important but not critical for basic functionality
+    }
+}
+
 /**
  * Get the database instance
  * @returns {Promise<Db>} MongoDB database instance

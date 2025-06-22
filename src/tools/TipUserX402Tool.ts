@@ -5,8 +5,6 @@ import { withPaymentInterceptor } from 'x402-axios';
 import { privateKeyToAccount } from 'viem/accounts';
 import dotenv from 'dotenv';
 import { TippingWalletManager } from './CheckTippingBalanceTool.js';
-import { isStandaloneMode } from '../utils/environment.js';
-import { createDemoUser, createDemoTipResult, logDemoOperation } from '../utils/demoResponses.js';
 // @ts-ignore
 import { userRepository } from '../../../mcp-server/database/userRepository.js';
 
@@ -87,31 +85,6 @@ export default class TipUserX402Tool extends MCPTool<TipUserParams> {
       
       toolLogger.info(`Processing x402 tip: ${amount} USDC from ${tipMdUserId} to ${username}`);
       
-      // Check if we're in standalone mode (demo)
-      if (isStandaloneMode()) {
-        toolLogger.info('Running in standalone/demo mode');
-        
-        // Basic validation
-        if (amount < 0.01) {
-          const result: TipResult = {
-            success: false,
-            operation: "x402_tip_demo",
-            error: {
-              code: "INVALID_AMOUNT",
-              message: "Minimum tip amount is 0.01 USDC",
-              details: `Requested amount: ${amount} USDC`
-            },
-            message: "Demo: Tip failed due to invalid amount"
-          };
-          return result;
-        }
-        
-        // Return demo response
-        const demoResult = createDemoTipResult(tipMdUserId, username, amount);
-        logDemoOperation('x402_tip', { tipMdUserId, username, amount });
-        return demoResult;
-      }
-      
       // Validate amount
       if (amount < 0.01) {
         const result: TipResult = {
@@ -184,11 +157,18 @@ export default class TipUserX402Tool extends MCPTool<TipUserParams> {
       // 2. Create x402 payment client with user's private key
       const account = privateKeyToAccount(walletData.privateKey as `0x${string}`);
       
-      // Use the main server port (integrated x402 routes)
-      const MAIN_SERVER_PORT = parseInt(process.env.PORT || '5001', 10);
+      // Use internal service communication for DigitalOcean App Platform
       const baseURL = process.env.NODE_ENV === 'production' 
-        ? `http://localhost:${MAIN_SERVER_PORT}`  // Internal communication - main server with x402 routes
-        : `http://localhost:${MAIN_SERVER_PORT}`; // Local development - main server with x402 routes
+        ? 'http://gittipstream:8080'  // Internal service communication - main server with x402 routes
+        : 'http://localhost:5001'; // Local development - main server with x402 routes
+      
+      // 🔍 HACKATHON TRANSPARENCY: Log x402 client setup
+      toolLogger.info('=== x402 CLIENT SETUP ===');
+      toolLogger.info(`🔧 Client Configuration:`);
+      toolLogger.info(`  Base URL: ${baseURL}`);
+      toolLogger.info(`  Payment Account: ${account.address}`);
+      toolLogger.info(`  Protocol: x402 (HTTP 402 Payment Required)`);
+      toolLogger.info(`  Network: Base`);
       
       const x402Client = withPaymentInterceptor(
         axios.create({ baseURL, timeout: 30000 }), 
@@ -197,24 +177,49 @@ export default class TipUserX402Tool extends MCPTool<TipUserParams> {
 
       toolLogger.info(`Created x402 client for baseURL: ${baseURL}`);
 
-      // 3. Make x402 payment to protected endpoint
-      toolLogger.info(`Sending x402 payment: ${amount} USDC to ${username} (${recipientUser.ethereumAddress})`);
+      // 3. Make the tip request with x402 payment
+      toolLogger.info(`Making tip request to ${baseURL}/tip`);
+      toolLogger.info(`Tip details: ${amount} USDC to ${username}`);
       
+      // 🔍 HACKATHON TRANSPARENCY: Log x402 payment attempt
+      toolLogger.info('=== x402 PAYMENT PROTOCOL EXECUTION ===');
+      toolLogger.info(`💸 Payment Request:`);
+      toolLogger.info(`  Recipient: ${username}`);
+      toolLogger.info(`  Amount: ${amount} USDC`);
+      toolLogger.info(`  Sender: ${tipMdUserId}`);
+      toolLogger.info(`  Protocol: HTTP 402 Payment Required`);
+      toolLogger.info(`📡 Initiating x402 payment request...`);
+
       const response = await x402Client.post('/tip', {
         recipientUsername: username,
-        recipientAddress: recipientUser.ethereumAddress, // Use the saved Ethereum address
-        tipAmount: Math.floor(amount * 1000000), // Convert to microUSDC (6 decimals)
-        message: 'x402 tip via MCP server',
-        senderName: 'MCP Agent'
+        recipientAddress: recipientUser.ethereumAddress,
+        tipAmount: Math.floor(amount * 1000000), // Convert to microUSDC
+        message: `Tip from ${tipMdUserId}`,
+        senderName: tipMdUserId
       });
 
-      toolLogger.info(`x402 payment successful:`, response.data);
+      // 🔍 HACKATHON TRANSPARENCY: Log x402 payment success
+      toolLogger.info('=== x402 PAYMENT SUCCESS ===');
+      toolLogger.info(`✅ Payment Protocol: HTTP 402 completed successfully`);
+      toolLogger.info(`✅ Payment Verified: ${amount} USDC payment accepted`);
+      toolLogger.info(`✅ Service Delivered: Tip distribution completed`);
+      
+      if (response.data.x402Protocol) {
+        toolLogger.info(`📋 x402 Protocol Details:`);
+        toolLogger.info(`  Version: ${response.data.x402Protocol.protocolVersion}`);
+        toolLogger.info(`  Payment Method: ${response.data.x402Protocol.paymentMethod}`);
+        toolLogger.info(`  Network: ${response.data.x402Protocol.network}`);
+        toolLogger.info(`  Amount Verified: ${response.data.x402Protocol.paymentAmount}`);
+      }
+
+      toolLogger.info(`Tip successful: ${JSON.stringify(response.data, null, 2)}`);
 
       // 4. Save the tip to database now that payment succeeded
       const { recipient, transactions, amounts } = response.data;
       
       try {
         // Use the MCP server's database connection to save the tip
+        // @ts-ignore - JS module import in standalone repo
         const { getDb } = await import('../../database/connection.js');
         const db = await getDb();
         
