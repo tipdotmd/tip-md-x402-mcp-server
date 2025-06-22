@@ -10,7 +10,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && cp -r database/*.js dist/mcp-server/database/",
     "clean": "rm -rf dist",
     "rebuild": "npm run clean && npm run build",
     "watch": "tsc --watch",

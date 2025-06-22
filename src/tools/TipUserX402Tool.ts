@@ -8,7 +8,7 @@ import { TippingWalletManager } from './CheckTippingBalanceTool.js';
 import { isStandaloneMode } from '../utils/environment.js';
 import { createDemoUser, createDemoTipResult, logDemoOperation } from '../utils/demoResponses.js';
 // @ts-ignore
-import { userRepository } from '../../database/userRepository.js';
+import { userRepository } from '../../../mcp-server/database/userRepository.js';
 
 dotenv.config();
 

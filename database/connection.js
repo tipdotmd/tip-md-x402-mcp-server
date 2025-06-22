@@ -1,6 +1,6 @@
 import { MongoClient } from 'mongodb';
 import dotenv from 'dotenv';
-import { logger } from '../server.js';
+import { logger } from '../src/logger.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
