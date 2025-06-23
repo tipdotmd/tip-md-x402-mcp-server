@@ -176,12 +176,10 @@ npm start
 ### x402 Payment Collection
 - **Dedicated Wallets**: Each user gets a unique payment wallet
 - **Protocol Compliance**: Full x402 specification implementation
-- **Multi-Chain Support**: Ethereum, Base, Solana networks
-
+  
 ### CDP Automatic Disbursement  
 - **Smart Splitting**: 96% to recipient, 4% to platform
 - **Instant Settlement**: Automated via Coinbase Developer Platform
-- **Multi-Token Support**: USDC, ETH, SOL, and more
 
 ### MCP Integration
 - **Universal Compatibility**: Works with any MCP-compatible AI agent
