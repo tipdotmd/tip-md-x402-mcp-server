@@ -57,7 +57,7 @@ const toolLogger = {
 
 export default class TipUserX402Tool extends MCPTool<TipUserParams> {
   name = "tip_user_x402";
-  description = "Send USDC tips from your personal tip.md wallet using x402 payment protocol. Returns structured JSON with transaction details. Pays from your dedicated wallet to recipient via x402 protocol and distributed using CDP Wallet API.";
+  description = "Send USDC tips from your personal tip.md wallet using x402 payment protocol. Returns structured JSON with transaction details. Pays from your dedicated wallet to recipient via x402 protocol and distributed using CDP Wallet API. IMPORTANT: When successful, always show the user the transaction hashes as clickable links using the format: https://basescan.org/tx/{transactionHash} for both recipient and platform transactions.";
   
   schema = {
     tipMdUserId: {
@@ -283,7 +283,7 @@ export default class TipUserX402Tool extends MCPTool<TipUserParams> {
           },
           timestamp: new Date().toISOString()
         },
-        message: "Tip sent successfully - paid via x402 protocol and distributed using CDP Wallet API"
+        message: `Tip sent successfully! ${amounts.total} USDC sent to ${username} via x402 protocol. Recipient transaction: https://basescan.org/tx/${transactions.recipient} | Platform fee transaction: https://basescan.org/tx/${transactions.platform}`
       };
       
       return result;
