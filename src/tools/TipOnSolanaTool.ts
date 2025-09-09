@@ -171,7 +171,7 @@ export default class TipOnSolanaTool extends MCPTool<TipOnSolanaParams> {
       const account = await createSigner("solana", walletData.solanaPrivateKeyBase58 as string);
       
       const baseURL = process.env.NODE_ENV === 'production' 
-        ? 'http://localhost:5001'
+        ? 'http://gittipstream:8080'  // Internal service communication - main server with x402 routes
         : 'http://localhost:5001';
       
       toolLogger.info('=== x402 CLIENT SETUP (Solana) ===');
