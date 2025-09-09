@@ -20,6 +20,13 @@ interface BalanceCheckResult {
         isNewWallet: boolean;
         privateKey?: string;
         timestamp: string;
+        solana?: {
+            address: string;
+            balance: number;
+            network: string;
+            isNewWallet: boolean;
+            privateKey?: string;
+        };
     };
     setup?: {
         instructions: string[];
@@ -42,10 +49,17 @@ declare class TippingWalletManager {
         wallet: ethers.HDNodeWallet | ethers.Wallet;
         isNewWallet: boolean;
         privateKey?: string;
+        solanaAddress?: string;
+        solanaPrivateKeyBase58?: string;
+    }>;
+    static createSolanaKeyPair(): Promise<{
+        keypair: CryptoKeyPair;
+        keypairSeed: Uint8Array;
     }>;
     static updateLastUsed(userId: string): Promise<void>;
     static getWalletData(userId: string): Promise<any>;
     static getUSDCBalance(address: string): Promise<number>;
+    static getSolanaUSDCBalance(solanaAddress: string): Promise<number>;
 }
 export default class CheckTippingBalanceTool extends MCPTool<CheckTippingBalanceParams> {
     readonly name = "check_tipping_balance";

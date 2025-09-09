@@ -1,63 +1,67 @@
 import { MongoClient } from 'mongodb';
 import dotenv from 'dotenv';
+import { logger } from '../src/logger.js';
+import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import fs from 'fs';
-// Added local logger
-const dbLogger = {
-    info: (...args) => console.log('[DB Connection]', ...args),
-    error: (...args) => console.error('[DB Connection ERROR]', ...args),
-    warn: (...args) => console.warn('[DB Connection WARN]', ...args),
-    debug: (...args) => process.env.NODE_ENV !== 'production' ? console.debug('[DB Connection DEBUG]', ...args) : null
-};
+
 // The issue is that the path calculation is wrong when running from the dist folder
 // We need to find the actual project root, not relative to where the compiled JS is
+
 // First check if we're running from the compiled dist directory
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
 // Figure out the correct project root
 let projectRoot = __dirname;
+
 // Navigate up directories until we find the .env file or reach the filesystem root
 while (!fs.existsSync(path.join(projectRoot, '.env'))) {
-    const parentDir = path.dirname(projectRoot);
-    // If we've reached the filesystem root, stop
-    if (parentDir === projectRoot) {
-        break;
-    }
-    projectRoot = parentDir;
+  const parentDir = path.dirname(projectRoot);
+  // If we've reached the filesystem root, stop
+  if (parentDir === projectRoot) {
+    break;
+  }
+  projectRoot = parentDir;
 }
+
 // Show the path to the .env file for debugging
 const envPath = path.join(projectRoot, '.env');
-dbLogger.info(`Looking for .env file at: ${envPath}`);
-dbLogger.info(`File exists: ${fs.existsSync(envPath)}`);
-// In production, environment variables should be set in the environment
-// In development, load from .env file
-if (process.env.NODE_ENV !== 'production') {
-    dbLogger.info('Loading .env file in development mode');
-    dotenv.config({ path: envPath });
-    dbLogger.info('After loading .env, MONGODB_URI exists:', !!process.env.MONGODB_URI);
-    if (process.env.MONGODB_URI) {
-        dbLogger.info('MONGODB_URI starts with:', process.env.MONGODB_URI.substring(0, 20) + '...');
-    }
+console.log(`[DB Connection] Looking for .env file at: ${envPath}`);
+console.log(`[DB Connection] File exists: ${fs.existsSync(envPath)}`);
+
+// Load environment variables
+dotenv.config({ path: envPath });
+console.log(`[DB Connection] After loading .env, MONGODB_URI exists:`, !!process.env.MONGODB_URI);
+if (process.env.MONGODB_URI) {
+  console.log(`[DB Connection] MONGODB_URI starts with:`, process.env.MONGODB_URI.substring(0, 20) + '...');
 }
+
 // MongoDB Connection Configuration
 const MONGODB_URI = process.env.MONGODB_URI || '';
 const DB_NAME = process.env.DB_NAME || 'tip_md';
-dbLogger.info(`DB_NAME from env: ${DB_NAME}`);
-dbLogger.info(`MONGODB_URI available: ${!!MONGODB_URI}`);
+
+// Determine TLS usage: default to true for mongodb+srv, false for localhost unless overridden
+const envTls = typeof process.env.MONGODB_TLS === 'string' ? process.env.MONGODB_TLS.toLowerCase() : undefined;
+const USE_TLS = envTls === 'true' ? true : envTls === 'false' ? false : MONGODB_URI.startsWith('mongodb+srv://');
+console.log(`[DB Connection] TLS enabled: ${USE_TLS} (MONGODB_TLS=${process.env.MONGODB_TLS ?? 'unset'})`);
+
+console.log(`[DB Connection] DB_NAME from env: ${DB_NAME}`);
+console.log(`[DB Connection] MONGODB_URI available: ${!!MONGODB_URI}`);
+
 // Connection Pool
 let client = null;
 let db = null;
 // Force disable mock mode - we always want to use the real MongoDB
 let mockMode = false;
+
 // Create a MongoDB client
 if (!MONGODB_URI) {
-    dbLogger.error('MONGODB_URI environment variable is not set. Please configure it in your .env file or environment variables.');
-}
-else {
+    console.error('[DB Connection ERROR] MONGODB_URI environment variable is not set. Please configure it in your .env file or environment variables.');
+} else {
     client = new MongoClient(MONGODB_URI, {
-        ssl: true,
-        tls: true,
+        ssl: USE_TLS,
+        tls: USE_TLS,
         tlsAllowInvalidCertificates: false,
         minPoolSize: 0,
         maxPoolSize: 10,
@@ -65,6 +69,7 @@ else {
         socketTimeoutMS: 45000,
     });
 }
+
 /**
  * Initialize the MongoDB connection
  * @returns {Promise<Db>} MongoDB database instance
@@ -72,25 +77,55 @@ else {
 export async function connectToDatabase() {
     try {
         if (db) {
-            dbLogger.info('Using existing database connection');
+            logger.info('Using existing database connection');
             return db;
         }
+
         if (!MONGODB_URI || !client) {
             throw new Error('MongoDB URI not provided or client not initialized');
         }
-        dbLogger.info('Connecting to MongoDB...');
+        logger.info('Connecting to MongoDB...');
         // Connect to MongoDB
         await client.connect();
-        dbLogger.info('Connected successfully to MongoDB');
+        logger.info('Connected successfully to MongoDB');
         // Get the database
         db = client.db(DB_NAME);
+        
+        // Create indexes for encrypted_wallets collection
+        await createEncryptedWalletsIndexes();
+        
         return db;
     }
     catch (error) {
-        dbLogger.error(`Failed to connect to MongoDB: ${error instanceof Error ? error.message : String(error)}`);
+        logger.error(`Failed to connect to MongoDB: ${error instanceof Error ? error.message : String(error)}`);
         throw error;
     }
 }
+
+/**
+ * Create indexes for encrypted_wallets collection
+ */
+async function createEncryptedWalletsIndexes() {
+    try {
+        if (!db) {
+            throw new Error('Database not initialized');
+        }
+        
+        const collection = db.collection('encrypted_wallets');
+        
+        // Create indexes for encrypted wallets
+        await collection.createIndex({ userId: 1 }, { unique: true });
+        await collection.createIndex({ address: 1 });
+        await collection.createIndex({ createdAt: 1 });
+        await collection.createIndex({ lastUsed: 1 });
+        
+        logger.info('Created indexes for encrypted_wallets collection');
+    } catch (error) {
+        logger.warn('Failed to create encrypted_wallets indexes:', error.message);
+        // Don't throw - indexes are important but not critical for basic functionality
+    }
+}
+
 /**
  * Get the database instance
  * @returns {Promise<Db>} MongoDB database instance
@@ -109,11 +144,11 @@ export async function closeConnection() {
         if (client) {
             await client.close();
             db = null;
-            dbLogger.info('MongoDB connection closed');
+            logger.info('MongoDB connection closed');
         }
     }
     catch (error) {
-        dbLogger.error(`Error closing MongoDB connection: ${error instanceof Error ? error.message : String(error)}`);
+        logger.error(`Error closing MongoDB connection: ${error instanceof Error ? error.message : String(error)}`);
     }
 }
 /**

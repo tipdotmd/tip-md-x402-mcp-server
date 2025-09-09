@@ -6,14 +6,14 @@ declare const BlockchainTippingParamsZodSchema: z.ZodObject<{
     amount: z.ZodEffects<z.ZodString, string, string>;
     token: z.ZodEnum<["ETH", "SOL", "USDC"]>;
 }, "strip", z.ZodTypeAny, {
-    username: string;
+    blockchain: "base" | "solana" | "ethereum";
     amount: string;
-    blockchain: "base" | "ethereum" | "solana";
+    username: string;
     token: "ETH" | "USDC" | "SOL";
 }, {
-    username: string;
+    blockchain: "base" | "solana" | "ethereum";
     amount: string;
-    blockchain: "base" | "ethereum" | "solana";
+    username: string;
     token: "ETH" | "USDC" | "SOL";
 }>;
 export type BlockchainTippingParams = z.infer<typeof BlockchainTippingParamsZodSchema>;

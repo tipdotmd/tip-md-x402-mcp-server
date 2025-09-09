@@ -1,7 +1,7 @@
 import { MCPTool } from "mcp-framework";
 import { z } from "zod";
 // @ts-ignore
-import { userRepository } from '../../database/userRepository.js';
+import { userRepository } from '../../../mcp-server/database/userRepository.js';
 // Local logger for this tool
 const toolLogger = {
     info: (...args) => console.log('[CryptoTippingTool]', ...args),
