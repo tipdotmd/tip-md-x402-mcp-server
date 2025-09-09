@@ -7,6 +7,8 @@ import base58 from 'bs58';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
+import { isStandaloneMode } from '../utils/environment.js';
+import { createDemoBalanceResponse } from '../utils/demoResponses.js';
 import dotenv from 'dotenv';
 dotenv.config();
 const CheckTippingBalanceSchema = z.object({
@@ -16,9 +18,10 @@ const CheckTippingBalanceSchema = z.object({
 let storage = null;
 async function getStorage() {
     if (!storage) {
-        // Dynamic import to avoid circular dependencies
-        const storageModule = await import('../../../server/storage.js');
-        storage = storageModule.storage;
+        // In standalone mode, we don't have access to main project storage
+        // This is expected for the hackathon demo repo
+        console.log('[CheckTippingBalanceTool] Running in standalone mode - using local wallet files');
+        return null;
     }
     return storage;
 }
@@ -60,6 +63,7 @@ class TippingWalletManager {
     }
     static async getOrCreateWallet(sessionId, userId) {
         try {
+            console.log("ENSURING WALLET DIRECTORY EXISTS");
             // Ensure wallet directory exists
             const walletDir = this.getWalletDir();
             if (!fs.existsSync(walletDir)) {
@@ -224,6 +228,12 @@ export default class CheckTippingBalanceTool extends MCPTool {
         try {
             const sessionId = context?.sessionId;
             console.log(`[Check Balance] Session: ${sessionId || 'default'}`);
+            // Check if we're in standalone mode (demo)
+            if (isStandaloneMode()) {
+                console.log('[Check Balance] Running in standalone/demo mode');
+                const userId = params.tipMdUserId || `demo_user_${Date.now()}`;
+                return createDemoBalanceResponse(userId);
+            }
             // Use provided tip.md user ID or generate new one for first-time users
             let userId;
             if (params.tipMdUserId) {
@@ -306,7 +316,7 @@ export default class CheckTippingBalanceTool extends MCPTool {
                         solana: {
                             address: solanaAddress || '',
                             balance: solanaUSDCBalance,
-                            network: "solana",
+                            network: "solana-mainnet-beta",
                             isNewWallet: false,
                             privateKey: solanaPrivateKeyBase58
                         }

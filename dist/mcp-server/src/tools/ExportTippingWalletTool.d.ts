@@ -18,8 +18,6 @@ interface ExportWalletResult {
         network: string;
         isNewWallet: boolean;
         timestamp: string;
-        solanaAddress?: string;
-        solanaPrivateKeyBase58?: string;
     };
     security?: {
         warnings: string[];

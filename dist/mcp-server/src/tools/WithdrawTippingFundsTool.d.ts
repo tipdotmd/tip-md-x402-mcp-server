@@ -5,15 +5,36 @@ declare const WithdrawSchema: z.ZodObject<{
     destinationAddress: z.ZodString;
     amount: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
-    amount: number;
     tipMdUserId: string;
+    amount: number;
     destinationAddress: string;
 }, {
-    amount: number;
     tipMdUserId: string;
+    amount: number;
     destinationAddress: string;
 }>;
 type WithdrawTippingFundsParams = z.infer<typeof WithdrawSchema>;
+interface WithdrawResult {
+    success: boolean;
+    operation: string;
+    data?: {
+        userId: string;
+        amount: number;
+        destinationAddress: string;
+        network: string;
+        sourceAddress: string;
+        transactionHash: string;
+        remainingBalance: number;
+        estimatedConfirmation: string;
+        timestamp: string;
+    };
+    error?: {
+        code: string;
+        message: string;
+        details?: string;
+    };
+    message: string;
+}
 export default class WithdrawTippingFundsTool extends MCPTool<WithdrawTippingFundsParams> {
     name: string;
     description: string;
@@ -22,18 +43,19 @@ export default class WithdrawTippingFundsTool extends MCPTool<WithdrawTippingFun
         destinationAddress: z.ZodString;
         amount: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
-        amount: number;
         tipMdUserId: string;
+        amount: number;
         destinationAddress: string;
     }, {
-        amount: number;
         tipMdUserId: string;
+        amount: number;
         destinationAddress: string;
     }>;
     constructor();
+    private validateEnvironment;
     execute(params: WithdrawTippingFundsParams, context?: {
         sessionId?: string;
-    }): Promise<string>;
+    }): Promise<WithdrawResult>;
 }
 export {};
 //# sourceMappingURL=WithdrawTippingFundsTool.d.ts.map

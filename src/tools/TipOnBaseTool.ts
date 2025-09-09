@@ -159,7 +159,7 @@ export default class TipOnBaseTool extends MCPTool<TipOnBaseParams> {
       
       // Use internal service communication for DigitalOcean App Platform
       const baseURL = process.env.NODE_ENV === 'production' 
-        ? 'http://localhost:5001'  // Internal service communication - main server with x402 routes
+        ? 'http://gittipstream:8080'  // Internal service communication - main server with x402 routes
         : 'http://localhost:5001'; // Local development - main server with x402 routes
       
       // 🔍 HACKATHON TRANSPARENCY: Log x402 client setup

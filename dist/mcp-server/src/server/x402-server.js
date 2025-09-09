@@ -1,4 +1,5 @@
 import { paymentMiddleware } from 'x402-express';
+import { facilitator } from '@coinbase/x402';
 import { CdpClient } from '@coinbase/cdp-sdk';
 import { createWalletClient, http, createPublicClient } from 'viem';
 import { toAccount } from 'viem/accounts';
@@ -149,7 +150,7 @@ const setupTipRoute = (app) => {
                     price: `$${(tipAmount / 1000000).toFixed(2)}`, // Convert from microUSDC to USDC
                     network: "base"
                 }
-            }, { url: "https://facilitator.payai.network" });
+            }, facilitator);
             // 🔍 HACKATHON TRANSPARENCY: Log x402 payment requirements
             logger.info('💰 x402 PAYMENT REQUIREMENTS:');
             logger.info(`  Required Payment: $${(tipAmount / 1000000).toFixed(2)} USDC`);
@@ -242,7 +243,7 @@ const setupTipRoute = (app) => {
             logger.info('=== END x402 TRANSACTION ===');
             // Check ETH balance after successful distribution and alert if low
             await checkAndAlertLowETHBalance();
-            // Note: Database persistence is handled by the calling MCP tool (TipOnBaseTool)
+            // Note: Database persistence is handled by the calling MCP tool (TipUserX402Tool)
             // This server only handles payment verification and blockchain transfers
             logger.info(`Payment processing completed: ${tipAmount / 1000000} USDC to ${recipientUsername}`);
             res.json({

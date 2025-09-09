@@ -182,7 +182,7 @@ const setupTipRoute = (app: any) => {
             network: "base"
           }
         },
-        {url: "https://facilitator.payai.network"}
+        facilitator
       );
 
       // 🔍 HACKATHON TRANSPARENCY: Log x402 payment requirements

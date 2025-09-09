@@ -127,7 +127,6 @@ class TippingWalletManager {
       // Check if wallet file already exists for this user
       if (fs.existsSync(walletPath)) {
         const data = JSON.parse(fs.readFileSync(walletPath, 'utf8'));
-        console.log("wallet file DATA", data);
         const wallet = new ethers.Wallet(data.privateKey);
         console.log(`[Wallet Manager] Loaded existing wallet for user: ${userId}`);
         // Ensure Solana wallet fields exist for the sender (idempotent)
@@ -188,6 +187,7 @@ class TippingWalletManager {
     }
   }
 
+  // TODO: this can be created with CDP API and export the private key
   static async createSolanaKeyPair(): Promise<{ keypair: CryptoKeyPair; keypairSeed: Uint8Array }> {
     // Generate a 32-byte seed and derive an Ed25519 keypair; return 64-byte secret (seed32 || pubkey32)
     const seed32 = new Uint8Array(crypto.randomBytes(32));
@@ -252,7 +252,6 @@ class TippingWalletManager {
   }
 
   static async getSolanaUSDCBalance(solanaAddress: string): Promise<number> {
-    console.log("GETTING SOLANA USDC BALANCE FOR", solanaAddress);
 
     if (!solanaAddress) {
       return 0;
@@ -263,25 +262,17 @@ class TippingWalletManager {
       const usdcMint = toAddress('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v');
 
       // Find all token accounts for the owner filtered by USDC mint
-      console.log("Before getting token accounts");
       const accountsResp = await rpc.getTokenAccountsByOwner(owner, { mint: usdcMint }, { encoding: 'base64'}).send();
       if (!accountsResp?.value || accountsResp.value.length === 0) {
         return 0;
       }
-      console.log("After getting token accounts");
-      console.log("Accounts resp", accountsResp);
 
       // Sum balances across all USDC token accounts (rare but possible)
       let totalUiAmount = 0;
       for (const acc of accountsResp.value) {
-        console.log("Before getting token account balance of account", acc.pubkey);
         const balanceResp = await rpc.getTokenAccountBalance(acc.pubkey).send();
         totalUiAmount += Number(balanceResp?.value?.uiAmount || 0);
-        console.log("After getting token account balance of account", acc.pubkey);
-        console.log("Balance resp", balanceResp);
       }
-      console.log("After getting token account balances");
-      console.log("Total UI amount", totalUiAmount);
 
       return parseFloat(totalUiAmount.toString());
     } catch (error) {
@@ -300,7 +291,6 @@ export default class CheckTippingBalanceTool extends MCPTool<CheckTippingBalance
 
   async execute(params: CheckTippingBalanceParams, context?: { sessionId?: string }): Promise<BalanceCheckResult> {
     try {
-      console.log("CHECKING TIPPING BALANCE");
       const sessionId = context?.sessionId;
       console.log(`[Check Balance] Session: ${sessionId || 'default'}`);
 
@@ -375,8 +365,6 @@ export default class CheckTippingBalanceTool extends MCPTool<CheckTippingBalance
         // Existing wallet - show balance and status
         const balance = await TippingWalletManager.getUSDCBalance(wallet.address);
         const solanaUSDCBalance = await TippingWalletManager.getSolanaUSDCBalance(solanaAddress || '');
-        console.log("Base Balance", balance);
-        console.log("Solana USDC Balance", solanaUSDCBalance);
         await TippingWalletManager.updateLastUsed(userId);
 
         const message = 
