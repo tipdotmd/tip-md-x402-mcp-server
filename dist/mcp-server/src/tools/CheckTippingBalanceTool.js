@@ -1,9 +1,16 @@
 import { MCPTool } from "mcp-framework";
 import { z } from 'zod';
 import { ethers } from 'ethers';
+import { createSignerFromKeyPair, address as toAddress, createSolanaRpc } from '@solana/kit';
+import { createKeyPairFromPrivateKeyBytes } from '@solana/keys';
+import base58 from 'bs58';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
+import { isStandaloneMode } from '../utils/environment.js';
+import { createDemoBalanceResponse } from '../utils/demoResponses.js';
+import dotenv from 'dotenv';
+dotenv.config();
 const CheckTippingBalanceSchema = z.object({
     tipMdUserId: z.string().optional().describe("Your existing tip.md user ID (leave empty for new users)")
 });
@@ -11,9 +18,10 @@ const CheckTippingBalanceSchema = z.object({
 let storage = null;
 async function getStorage() {
     if (!storage) {
-        // Dynamic import to avoid circular dependencies
-        const storageModule = await import('../../../server/storage.js');
-        storage = storageModule.storage;
+        // In standalone mode, we don't have access to main project storage
+        // This is expected for the hackathon demo repo
+        console.log('[CheckTippingBalanceTool] Running in standalone mode - using local wallet files');
+        return null;
     }
     return storage;
 }
@@ -55,6 +63,7 @@ class TippingWalletManager {
     }
     static async getOrCreateWallet(sessionId, userId) {
         try {
+            console.log("ENSURING WALLET DIRECTORY EXISTS");
             // Ensure wallet directory exists
             const walletDir = this.getWalletDir();
             if (!fs.existsSync(walletDir)) {
@@ -70,12 +79,23 @@ class TippingWalletManager {
                 const data = JSON.parse(fs.readFileSync(walletPath, 'utf8'));
                 const wallet = new ethers.Wallet(data.privateKey);
                 console.log(`[Wallet Manager] Loaded existing wallet for user: ${userId}`);
+                // Ensure Solana wallet fields exist for the sender (idempotent)
+                if (!data.solanaAddress) {
+                    const { keypair, keypairSeed } = await this.createSolanaKeyPair();
+                    const signer = await createSignerFromKeyPair(keypair);
+                    data.solanaAddress = signer.address;
+                    data.solanaPrivateKeyBase58 = base58.encode(keypairSeed);
+                    fs.writeFileSync(walletPath, JSON.stringify(data, null, 2));
+                    console.log(`[Wallet Manager] Added Solana wallet for user: ${userId} at ${data.solanaAddress}`);
+                }
                 // Update last used timestamp in file
                 await this.updateLastUsed(userId);
                 return {
                     wallet,
                     isNewWallet: false,
-                    privateKey: data.privateKey
+                    privateKey: data.privateKey,
+                    solanaAddress: data.solanaAddress,
+                    solanaPrivateKeyBase58: data.solanaPrivateKeyBase58
                 };
             }
             else {
@@ -90,12 +110,20 @@ class TippingWalletManager {
                     created: new Date().toISOString(),
                     lastUsed: new Date().toISOString()
                 };
+                // Also generate a Solana wallet for the sender
+                const { keypair, keypairSeed } = await this.createSolanaKeyPair();
+                const signer = await createSignerFromKeyPair(keypair);
+                walletData.solanaAddress = signer.address;
+                walletData.solanaPrivateKeyBase58 = base58.encode(keypairSeed);
+                console.log(`[Wallet Manager] Created Solana wallet for user: ${userId} at ${walletData.solanaAddress}`);
                 fs.writeFileSync(walletPath, JSON.stringify(walletData, null, 2));
-                console.log(`[Wallet Manager] Created new wallet for user: ${userId} at ${wallet.address}`);
+                console.log(`[Wallet Manager] Created new wallet for user: ${userId} at ${wallet.address} and ${walletData.solanaAddress}`);
                 return {
                     wallet,
                     isNewWallet: true,
-                    privateKey: wallet.privateKey // Return private key for new wallets
+                    privateKey: wallet.privateKey, // Return private key for new wallets
+                    solanaAddress: walletData.solanaAddress,
+                    solanaPrivateKeyBase58: walletData.solanaPrivateKeyBase58
                 };
             }
         }
@@ -103,6 +131,18 @@ class TippingWalletManager {
             console.error('[Wallet Manager] Error managing wallet:', error);
             throw new Error(`Failed to manage tipping wallet: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
+    }
+    // TODO: this can be created with CDP API and export the private key
+    static async createSolanaKeyPair() {
+        // Generate a 32-byte seed and derive an Ed25519 keypair; return 64-byte secret (seed32 || pubkey32)
+        const seed32 = new Uint8Array(crypto.randomBytes(32));
+        const keypair = await createKeyPairFromPrivateKeyBytes(seed32);
+        const pubKeyBuf = await crypto.subtle.exportKey('raw', keypair.publicKey);
+        const pubKeyBytes = new Uint8Array(pubKeyBuf);
+        const secret64 = new Uint8Array(64);
+        secret64.set(seed32, 0);
+        secret64.set(pubKeyBytes, 32);
+        return { keypair: keypair, keypairSeed: secret64 };
     }
     static async updateLastUsed(userId) {
         try {
@@ -152,6 +192,32 @@ class TippingWalletManager {
             return 0;
         }
     }
+    static async getSolanaUSDCBalance(solanaAddress) {
+        if (!solanaAddress) {
+            return 0;
+        }
+        try {
+            const rpc = createSolanaRpc('https://api.mainnet-beta.solana.com');
+            const owner = toAddress(solanaAddress);
+            const usdcMint = toAddress('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v');
+            // Find all token accounts for the owner filtered by USDC mint
+            const accountsResp = await rpc.getTokenAccountsByOwner(owner, { mint: usdcMint }, { encoding: 'base64' }).send();
+            if (!accountsResp?.value || accountsResp.value.length === 0) {
+                return 0;
+            }
+            // Sum balances across all USDC token accounts (rare but possible)
+            let totalUiAmount = 0;
+            for (const acc of accountsResp.value) {
+                const balanceResp = await rpc.getTokenAccountBalance(acc.pubkey).send();
+                totalUiAmount += Number(balanceResp?.value?.uiAmount || 0);
+            }
+            return parseFloat(totalUiAmount.toString());
+        }
+        catch (error) {
+            console.error('[Wallet Manager] Error fetching Solana USDC balance:', error);
+            return 0;
+        }
+    }
 }
 export default class CheckTippingBalanceTool extends MCPTool {
     name = 'check_tipping_balance';
@@ -162,6 +228,12 @@ export default class CheckTippingBalanceTool extends MCPTool {
         try {
             const sessionId = context?.sessionId;
             console.log(`[Check Balance] Session: ${sessionId || 'default'}`);
+            // Check if we're in standalone mode (demo)
+            if (isStandaloneMode()) {
+                console.log('[Check Balance] Running in standalone/demo mode');
+                const userId = params.tipMdUserId || `demo_user_${Date.now()}`;
+                return createDemoBalanceResponse(userId);
+            }
             // Use provided tip.md user ID or generate new one for first-time users
             let userId;
             if (params.tipMdUserId) {
@@ -175,7 +247,7 @@ export default class CheckTippingBalanceTool extends MCPTool {
                 console.log(`[Check Balance] Generated new tip.md user ID: ${userId}`);
             }
             // Get or create wallet using the user ID
-            const { wallet, isNewWallet, privateKey } = await TippingWalletManager.getOrCreateWallet(sessionId, userId);
+            const { wallet, isNewWallet, privateKey, solanaAddress, solanaPrivateKeyBase58 } = await TippingWalletManager.getOrCreateWallet(sessionId, userId);
             if (isNewWallet) {
                 // New wallet - return setup instructions with private key
                 const result = {
@@ -188,21 +260,31 @@ export default class CheckTippingBalanceTool extends MCPTool {
                         network: "base",
                         isNewWallet: true,
                         privateKey: privateKey,
-                        timestamp: new Date().toISOString()
+                        timestamp: new Date().toISOString(),
+                        solana: {
+                            address: solanaAddress || '',
+                            balance: 0,
+                            network: "solana",
+                            isNewWallet: true,
+                            privateKey: solanaPrivateKeyBase58
+                        }
                     },
                     setup: {
                         instructions: [
                             `Save your tip.md User ID: ${userId}`,
-                            `Save your private key securely: ${privateKey}`,
+                            `Save your Base private key securely: ${privateKey}`,
+                            `Save your Solana private key securely: ${solanaPrivateKeyBase58}`,
                             `Import to MetaMask: Settings → Import Account → Private Key`,
                             `Fund your wallet by sending USDC to: ${wallet.address} (Base network)`,
+                            `Fund your wallet by sending USDC to: ${solanaAddress} (Solana network)`,
                             `Use your tip.md ID in future sessions: ${userId}`
                         ],
                         warnings: [
                             "This is your permanent identifier for tip.md",
                             "You'll need this ID to access your wallet in future sessions",
                             "It's cryptographically unique - no one else can have the same ID",
-                            "Copy and save the private key securely (password manager, etc.)",
+                            "Copy and save the Base private key securely (password manager, etc.)",
+                            "Copy and save the Solana private key securely (password manager, etc.)",
                             "The private key gives you full control of your wallet"
                         ]
                     },
@@ -213,7 +295,14 @@ export default class CheckTippingBalanceTool extends MCPTool {
             else {
                 // Existing wallet - show balance and status
                 const balance = await TippingWalletManager.getUSDCBalance(wallet.address);
+                const solanaUSDCBalance = await TippingWalletManager.getSolanaUSDCBalance(solanaAddress || '');
                 await TippingWalletManager.updateLastUsed(userId);
+                const message = `Base: ${balance > 0
+                    ? `Wallet ready for tipping with ${balance.toFixed(2)} USDC balance`
+                    : "Wallet needs funding - send USDC on Base to address to enable tipping"}; ` +
+                    `Solana: ${solanaUSDCBalance > 0
+                        ? `Wallet ready for tipping with ${solanaUSDCBalance.toFixed(2)} USDC balance`
+                        : "Wallet needs funding - send USDC on Solana to address to enable tipping"}`;
                 const result = {
                     success: true,
                     operation: "balance_check",
@@ -223,11 +312,16 @@ export default class CheckTippingBalanceTool extends MCPTool {
                         balance: Number(balance.toFixed(2)),
                         network: "base",
                         isNewWallet: false,
-                        timestamp: new Date().toISOString()
+                        timestamp: new Date().toISOString(),
+                        solana: {
+                            address: solanaAddress || '',
+                            balance: solanaUSDCBalance,
+                            network: "solana-mainnet-beta",
+                            isNewWallet: false,
+                            privateKey: solanaPrivateKeyBase58
+                        }
                     },
-                    message: balance > 0
-                        ? `Wallet ready for tipping with ${balance.toFixed(2)} USDC balance`
-                        : "Wallet needs funding - send USDC to address to enable tipping"
+                    message: message
                 };
                 return result;
             }

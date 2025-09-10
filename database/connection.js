@@ -41,6 +41,11 @@ if (process.env.MONGODB_URI) {
 const MONGODB_URI = process.env.MONGODB_URI || '';
 const DB_NAME = process.env.DB_NAME || 'tip_md';
 
+// Determine TLS usage: default to true for mongodb+srv, false for localhost unless overridden
+const envTls = typeof process.env.MONGODB_TLS === 'string' ? process.env.MONGODB_TLS.toLowerCase() : undefined;
+const USE_TLS = envTls === 'true' ? true : envTls === 'false' ? false : MONGODB_URI.startsWith('mongodb+srv://');
+console.log(`[DB Connection] TLS enabled: ${USE_TLS} (MONGODB_TLS=${process.env.MONGODB_TLS ?? 'unset'})`);
+
 console.log(`[DB Connection] DB_NAME from env: ${DB_NAME}`);
 console.log(`[DB Connection] MONGODB_URI available: ${!!MONGODB_URI}`);
 
@@ -55,8 +60,8 @@ if (!MONGODB_URI) {
     console.error('[DB Connection ERROR] MONGODB_URI environment variable is not set. Please configure it in your .env file or environment variables.');
 } else {
     client = new MongoClient(MONGODB_URI, {
-        ssl: true,
-        tls: true,
+        ssl: USE_TLS,
+        tls: USE_TLS,
         tlsAllowInvalidCertificates: false,
         minPoolSize: 0,
         maxPoolSize: 10,

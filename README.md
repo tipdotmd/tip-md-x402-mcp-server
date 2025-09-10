@@ -56,8 +56,9 @@ User → Dedicated Tipping Wallet → x402 Payment Collection → CDP Agent Wall
 This MCP server exposes **7 tools** that any AI agent can use:
 
 ### **💰 x402 + CDP Payment Tools (Hackathon Innovation)**
-- **`mcp_tip_md_tip_user_x402`**: Send USDC tips using x402 payment protocol with CDP automatic disbursement
-- **`mcp_tip_md_check_tipping_balance`**: Check/create your dedicated x402 tipping wallet balance and info
+- **`mcp_tip_md_tip_on_base`**: Send USDC tips on Base using x402 payment protocol with CDP automatic disbursement
+- **`mcp_tip_md_tip_on_solana`**: Send USDC tips on Solana using x402 payment protocol
+- **`mcp_tip_md_check_tipping_balance`**: Check/create your dedicated tipping wallet balance and info
 
 ### **🔧 Wallet Management Tools**  
 - **`mcp_tip_md_export_tipping_wallet`**: Export your tipping wallet private key (security sensitive)

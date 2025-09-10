@@ -130,6 +130,17 @@ const setupTipRoute = (app) => {
                 return;
             }
             logger.info(`Processing tip: ${tipAmount} USDC to ${recipientUsername} from ${senderName || 'Anonymous'}`);
+            // 🔍 HACKATHON TRANSPARENCY: Log incoming x402 headers
+            logger.info('=== x402 PAYMENT PROTOCOL ANALYSIS ===');
+            logger.info('📥 INCOMING REQUEST HEADERS:');
+            Object.keys(req.headers).forEach(header => {
+                if (header.toLowerCase().includes('authorization') ||
+                    header.toLowerCase().includes('payment') ||
+                    header.toLowerCase().includes('x402') ||
+                    header.toLowerCase().includes('signature')) {
+                    logger.info(`  ${header}: ${req.headers[header]}`);
+                }
+            });
             // Apply x402 payment verification dynamically based on tip amount
             // x402 payments should go to CDP_AGENT_ADDRESS (the funded wallet we use for distribution)
             const cdpAgentWallet = (process.env.CDP_AGENT_ADDRESS || "0x0000000000000000000000000000000000000000");
@@ -140,8 +151,39 @@ const setupTipRoute = (app) => {
                     network: "base"
                 }
             }, facilitator);
+            // 🔍 HACKATHON TRANSPARENCY: Log x402 payment requirements
+            logger.info('💰 x402 PAYMENT REQUIREMENTS:');
+            logger.info(`  Required Payment: $${(tipAmount / 1000000).toFixed(2)} USDC`);
+            logger.info(`  Payment Recipient: ${cdpAgentWallet}`);
+            logger.info(`  Network: Base`);
+            logger.info(`  Protocol: x402 (HTTP 402 Payment Required)`);
             // Apply the middleware dynamically to this request
+            let paymentVerified = false;
             await new Promise((resolve, reject) => {
+                // Capture the original res.status and res.json to intercept 402 responses
+                const originalStatus = res.status.bind(res);
+                const originalJson = res.json.bind(res);
+                res.status = function (code) {
+                    if (code === 402) {
+                        logger.info('🚫 x402 PAYMENT CHALLENGE ISSUED:');
+                        logger.info(`  Status Code: 402 Payment Required`);
+                        logger.info(`  Challenge Type: Blockchain payment verification`);
+                    }
+                    return originalStatus(code);
+                };
+                res.json = function (data) {
+                    if (res.statusCode === 402) {
+                        logger.info('📋 x402 PAYMENT CHALLENGE DETAILS:');
+                        logger.info(`  Challenge Data: ${JSON.stringify(data, null, 2)}`);
+                    }
+                    else if (res.statusCode === 200) {
+                        paymentVerified = true;
+                        logger.info('✅ x402 PAYMENT VERIFICATION SUCCESS:');
+                        logger.info(`  Payment verified and accepted`);
+                        logger.info(`  Proceeding with service delivery`);
+                    }
+                    return originalJson(data);
+                };
                 dynamicPaymentMiddleware(req, res, (err) => {
                     if (err)
                         reject(err);
@@ -149,6 +191,14 @@ const setupTipRoute = (app) => {
                         resolve();
                 });
             });
+            // 🔍 HACKATHON TRANSPARENCY: Log payment verification result
+            if (!paymentVerified && res.statusCode !== 200) {
+                logger.info('❌ x402 PAYMENT VERIFICATION FAILED');
+                logger.info('  Service delivery blocked - payment required');
+                return; // Exit early if payment not verified
+            }
+            logger.info('🎉 x402 PAYMENT PROTOCOL COMPLETED SUCCESSFULLY');
+            logger.info('  Payment verified - delivering premium service');
             // Payment has been verified and processed - now distribute the funds
             // Use the recipientAddress directly (no need for database lookup since MCP tool already validated)
             // Calculate split amounts (96% to recipient, 4% to platform)
@@ -178,6 +228,19 @@ const setupTipRoute = (app) => {
             logger.info(`  Recipient: ${recipientTransfer.transactionHash}`);
             logger.info(`  Platform: ${platformTransfer.transactionHash}`);
             logger.info(`Platform earned ${platformAmount / 1000000} USDC fee from this transaction`);
+            // 🔍 HACKATHON TRANSPARENCY: Log complete transaction summary
+            logger.info('=== x402 TRANSACTION SUMMARY ===');
+            logger.info(`✅ Protocol: HTTP 402 Payment Required (x402)`);
+            logger.info(`✅ Payment: $${(tipAmount / 1000000).toFixed(2)} USDC verified`);
+            logger.info(`✅ Service: Tip distribution completed`);
+            logger.info(`✅ Blockchain: Base network transactions confirmed`);
+            logger.info(`📊 Value Distribution:`);
+            logger.info(`  • Recipient (${recipientUsername}): ${recipientAmount / 1000000} USDC`);
+            logger.info(`  • Platform Fee: ${platformAmount / 1000000} USDC`);
+            logger.info(`🔗 Transaction Hashes:`);
+            logger.info(`  • Recipient: ${recipientTransfer.transactionHash}`);
+            logger.info(`  • Platform: ${platformTransfer.transactionHash}`);
+            logger.info('=== END x402 TRANSACTION ===');
             // Check ETH balance after successful distribution and alert if low
             await checkAndAlertLowETHBalance();
             // Note: Database persistence is handled by the calling MCP tool (TipUserX402Tool)
@@ -199,12 +262,21 @@ const setupTipRoute = (app) => {
                     total: tipAmount / 1000000,
                     recipient: recipientAmount / 1000000,
                     platformFee: platformAmount / 1000000
+                },
+                // 🔍 HACKATHON TRANSPARENCY: Add x402 protocol info to response
+                x402Protocol: {
+                    paymentVerified: true,
+                    protocolVersion: "x402",
+                    paymentMethod: "blockchain",
+                    network: "base",
+                    paymentAmount: `$${(tipAmount / 1000000).toFixed(2)} USDC`
                 }
             });
             return;
         }
         catch (error) {
             logger.error('Error processing tip:', error);
+            logger.error('=== x402 TRANSACTION FAILED ===');
             res.status(500).json({
                 error: 'Failed to process tip',
                 details: error instanceof Error ? error.message : 'Unknown error'

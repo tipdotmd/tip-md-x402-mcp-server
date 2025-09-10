@@ -10,14 +10,14 @@ import { userRepository } from '../../../mcp-server/database/userRepository.js';
 
 dotenv.config();
 
-const TipUserSchema = z.object({
+const TipOnBaseSchema = z.object({
   tipMdUserId: z.string().describe("Your tip.md user ID (to identify your wallet for sending)"),
   username: z.string().min(3).max(50).regex(/^[a-zA-Z0-9_-]+$/, 
     'Username must contain only alphanumeric characters, underscores, and hyphens'),
   amount: z.number().min(0.01).describe("Amount in USDC to tip (minimum 0.01)")
 });
 
-type TipUserParams = z.infer<typeof TipUserSchema>;
+type TipOnBaseParams = z.infer<typeof TipOnBaseSchema>;
 
 interface TipResult {
   success: boolean;
@@ -49,15 +49,15 @@ interface TipResult {
 
 // Local logger for this tool
 const toolLogger = {
-  info: (...args: any[]) => console.log('[TipUserX402Tool]', ...args),
-  error: (...args: any[]) => console.error('[TipUserX402Tool ERROR]', ...args),
-  warn: (...args: any[]) => console.warn('[TipUserX402Tool WARN]', ...args),
-  debug: (...args: any[]) => console.debug('[TipUserX402Tool DEBUG]', ...args)
+  info: (...args: any[]) => console.log('[TipOnBaseTool]', ...args),
+  error: (...args: any[]) => console.error('[TipOnBaseTool ERROR]', ...args),
+  warn: (...args: any[]) => console.warn('[TipOnBaseTool WARN]', ...args),
+  debug: (...args: any[]) => console.debug('[TipOnBaseTool DEBUG]', ...args)
 };
 
-export default class TipUserX402Tool extends MCPTool<TipUserParams> {
-  name = "tip_user_x402";
-  description = "Send USDC tips from your personal tip.md wallet using x402 payment protocol. Returns structured JSON with transaction details. Pays from your dedicated wallet to recipient via x402 protocol and distributed using CDP Wallet API. IMPORTANT: When successful, always show the user the transaction hashes as clickable links using the format: https://basescan.org/tx/{transactionHash} for both recipient and platform transactions.";
+export default class TipOnBaseTool extends MCPTool<TipOnBaseParams> {
+  name = "tip_on_base";
+  description = "Send USDC tips on Base from your personal tip.md wallet using the x402 payment protocol. Returns structured JSON with transaction details. Pays from your dedicated wallet to recipient via x402 protocol and distributed using CDP Wallet API. IMPORTANT: When successful, always show the user the transaction hashes as clickable links using the format: https://basescan.org/tx/{transactionHash} for both recipient and platform transactions.";
   
   schema = {
     tipMdUserId: {
@@ -79,17 +79,17 @@ export default class TipUserX402Tool extends MCPTool<TipUserParams> {
     super();
   }
 
-  async execute(input: TipUserParams): Promise<TipResult> {
+  async execute(input: TipOnBaseParams): Promise<TipResult> {
     try {
       const { tipMdUserId, username, amount } = input;
       
-      toolLogger.info(`Processing x402 tip: ${amount} USDC from ${tipMdUserId} to ${username}`);
+      toolLogger.info(`Processing Base tip: ${amount} USDC from ${tipMdUserId} to ${username}`);
       
       // Validate amount
       if (amount < 0.01) {
         const result: TipResult = {
           success: false,
-          operation: "x402_tip",
+          operation: "base_tip",
           error: {
             code: "INVALID_AMOUNT",
             message: "Minimum tip amount is 0.01 USDC",
@@ -100,12 +100,12 @@ export default class TipUserX402Tool extends MCPTool<TipUserParams> {
         return result;
       }
 
-      // Check if recipient user exists in database before attempting x402 payment
+      // Check if recipient user exists in database before attempting payment
       const recipientUser = await userRepository.getUserByUsername(username);
       if (!recipientUser) {
         const result: TipResult = {
           success: false,
-          operation: "x402_tip",
+          operation: "base_tip",
           error: {
             code: "USER_NOT_FOUND",
             message: "Recipient user not found",
@@ -123,7 +123,7 @@ export default class TipUserX402Tool extends MCPTool<TipUserParams> {
       if (!hasEthWallet) {
         const result: TipResult = {
           success: false,
-          operation: "x402_tip",
+          operation: "base_tip",
           error: {
             code: "RECIPIENT_WALLET_NOT_CONNECTED",
             message: "Recipient wallet not connected",
@@ -141,7 +141,7 @@ export default class TipUserX402Tool extends MCPTool<TipUserParams> {
       } catch (error) {
         const result: TipResult = {
           success: false,
-          operation: "x402_tip",
+          operation: "base_tip",
           error: {
             code: "WALLET_NOT_FOUND",
             message: "No tipping wallet found for user",
@@ -178,7 +178,7 @@ export default class TipUserX402Tool extends MCPTool<TipUserParams> {
       toolLogger.info(`Created x402 client for baseURL: ${baseURL}`);
 
       // 3. Make the tip request with x402 payment
-      toolLogger.info(`Making tip request to ${baseURL}/tip`);
+      toolLogger.info(`Making tip request to ${baseURL}/tip-base`);
       toolLogger.info(`Tip details: ${amount} USDC to ${username}`);
       
       // 🔍 HACKATHON TRANSPARENCY: Log x402 payment attempt
@@ -190,7 +190,7 @@ export default class TipUserX402Tool extends MCPTool<TipUserParams> {
       toolLogger.info(`  Protocol: HTTP 402 Payment Required`);
       toolLogger.info(`📡 Initiating x402 payment request...`);
 
-      const response = await x402Client.post('/tip', {
+      const response = await x402Client.post('/tip-base', {
         recipientUsername: username,
         recipientAddress: recipientUser.ethereumAddress,
         tipAmount: Math.floor(amount * 1000000), // Convert to microUSDC
@@ -220,7 +220,7 @@ export default class TipUserX402Tool extends MCPTool<TipUserParams> {
       try {
         // Use the MCP server's database connection to save the tip
         // @ts-ignore - JS module import in standalone repo
-        const { getDb } = await import('../../database/connection.js');
+        const { getDb } = await import('../../../mcp-server/database/connection.js');
         const db = await getDb();
         
         // Get the recipient user to get their ID for the tip record
@@ -237,7 +237,7 @@ export default class TipUserX402Tool extends MCPTool<TipUserParams> {
           id: newId,
           userId: recipientUser.id, // Use the user's numeric ID
           amount: amounts.total.toString(),
-          message: 'x402 tip via MCP server',
+          message: 'Base tip via MCP server (x402 verified)',
           senderName: 'MCP Agent',
           blockchain: 'base',
           token: 'USDC',
@@ -265,7 +265,7 @@ export default class TipUserX402Tool extends MCPTool<TipUserParams> {
       // 5. Return success message with transaction details
       const result: TipResult = {
         success: true,
-        operation: "x402_tip",
+        operation: "base_tip",
         data: {
           senderUserId: tipMdUserId,
           recipientUsername: username,
@@ -283,13 +283,13 @@ export default class TipUserX402Tool extends MCPTool<TipUserParams> {
           },
           timestamp: new Date().toISOString()
         },
-        message: `Tip sent successfully! ${amounts.total} USDC sent to ${username} via x402 protocol. Recipient transaction: https://basescan.org/tx/${transactions.recipient} | Platform fee transaction: https://basescan.org/tx/${transactions.platform}`
+        message: `Tip sent successfully on Base! ${amounts.total} USDC sent to ${username} via x402 protocol. Recipient transaction: https://basescan.org/tx/${transactions.recipient} | Platform fee transaction: https://basescan.org/tx/${transactions.platform}`
       };
       
       return result;
 
     } catch (error: any) {
-      toolLogger.error(`Error in x402 tip:`, error);
+      toolLogger.error(`Error in Base tip:`, error);
       
       // Handle x402-specific errors
       if (error.response?.status === 402) {
@@ -300,7 +300,7 @@ export default class TipUserX402Tool extends MCPTool<TipUserParams> {
           const walletAddress = await this.getWalletAddress(input.tipMdUserId);
           const result: TipResult = {
             success: false,
-            operation: "x402_tip",
+            operation: "base_tip",
             error: {
               code: "INSUFFICIENT_FUNDS",
               message: "Insufficient USDC balance for tip",
@@ -313,7 +313,7 @@ export default class TipUserX402Tool extends MCPTool<TipUserParams> {
         
         const result: TipResult = {
           success: false,
-          operation: "x402_tip",
+          operation: "base_tip",
           error: {
             code: "X402_PAYMENT_FAILED",
             message: "x402 payment verification failed",
@@ -328,7 +328,7 @@ export default class TipUserX402Tool extends MCPTool<TipUserParams> {
       if (error.code === 'ECONNREFUSED') {
         const result: TipResult = {
           success: false,
-          operation: "x402_tip",
+          operation: "base_tip",
           error: {
             code: "SERVICE_UNAVAILABLE",
             message: "x402 payment server not accessible",
@@ -343,7 +343,7 @@ export default class TipUserX402Tool extends MCPTool<TipUserParams> {
       if (error.response?.status === 404) {
         const result: TipResult = {
           success: false,
-          operation: "x402_tip",
+          operation: "base_tip",
           error: {
             code: "USER_NOT_FOUND",
             message: "Recipient user not found",
@@ -358,7 +358,7 @@ export default class TipUserX402Tool extends MCPTool<TipUserParams> {
       if (error.response?.status === 400 && error.response?.data?.error?.includes('Ethereum address')) {
         const result: TipResult = {
           success: false,
-          operation: "x402_tip",
+          operation: "base_tip",
           error: {
             code: "RECIPIENT_WALLET_NOT_CONNECTED",
             message: "Recipient wallet not connected",
@@ -372,7 +372,7 @@ export default class TipUserX402Tool extends MCPTool<TipUserParams> {
       // Generic error fallback
       const result: TipResult = {
         success: false,
-        operation: "x402_tip",
+        operation: "base_tip",
         error: {
           code: "TRANSACTION_FAILED",
           message: "Transaction failed",
