@@ -338,9 +338,10 @@ const processTipWithX402 = async (req: any, res: any, config: TipConfig): Promis
 // x402 Payment endpoint for tipping service with dynamic pricing
 const setupTipRoute = (app: any) => {
   app.post('/tip-solana', async (req: any, res: any): Promise<void> => {
+    const payTo = process.env.CDP_AGENT_ADDRESS_SOLANA as SolanaAddress;
     await processTipWithX402(req, res, {
       network: 'solana',
-      paymentAddress: process.env.CDP_AGENT_ADDRESS_SOLANA as SolanaAddress,
+      paymentAddress: payTo,
       executeTransfers: false
     });
   });
