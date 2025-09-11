@@ -1,4 +1,5 @@
 # [tip.md](https://tip.md) x402 + CDP MCP Server
+[![Trust Score](https://archestra.ai/mcp-catalog/api/badge/quality/tipdotmd/tip-md-x402-mcp-server)](https://archestra.ai/mcp-catalog/tipdotmd__tip-md-x402-mcp-server)
 
 > **🏆 Hackathon Entry**: Transform any AI agent into a payment-enabled tipping agent using x402 payment collection with CDP automatic disbursement.
 
