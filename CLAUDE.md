@@ -55,7 +55,8 @@ User → AI Agent → MCP Tool → x402 Payment Collection → CDP Automatic Dis
 
 ### MCP Tools Available
 
-1. **`mcp_tip_md_tip_user_x402`** - Core x402 tipping with CDP disbursement
+1. **`mcp_tip_md_tip_on_base`** - Core x402 tipping on Base with CDP disbursement
+2. **`mcp_tip_md_tip_on_solana`** - Core x402 tipping on Solana with CDP disbursement
 2. **`mcp_tip_md_check_tipping_balance`** - Check/create user tipping wallet
 3. **`mcp_tip_md_export_tipping_wallet`** - Export wallet private key
 4. **`mcp_tip_md_withdraw_tipping_funds`** - Withdraw from tipping wallet

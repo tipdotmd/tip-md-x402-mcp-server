@@ -23,7 +23,7 @@
   "dependencies": {
     "@coinbase/cdp-sdk": "^1.16.0",
     "@coinbase/coinbase-sdk": "^0.25.0",
-    "@coinbase/x402": "^0.4.0",
+    "@coinbase/x402": "^0.6.0",
     "@solana/kit": "^2.3.0",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.3",
